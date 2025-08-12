@@ -64,3 +64,23 @@ func (r *OrderRepository) SaveOrder(order *models.Order) error {
 	// Фиксируем транзакцию
 	return tx.Commit()
 }
+
+// GetAllOrders возвращает все заказы из базы данных
+func (r *OrderRepository) GetAllOrders() ([]models.Order, error) {
+	query := `SELECT o.order_uid, o.track_number, o.entry, o.locale, o.internal_signature, o.customer_id,
+               o.delivery_service, o.shardkey, o.sm_id, o.date_created, o.oof_shard,
+               d.name, d.phone, d.zip, d.city, d.address, d.region, d.email,
+               p.transaction, p.request_id, p.currency, p.provider, p.amount, p.payment_dt, p.bank,
+               p.delivery_cost, p.goods_total, p.custom_fee
+        FROM orders o
+        JOIN deliveries d ON o.order_uid = d.order_uid
+        JOIN payments p ON o.order_uid = p.order_uid
+		`
+
+	var orders []models.Order
+	err := r.db.Select(&orders, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders: %w", err)
+	}
+	return orders, nil
+}
