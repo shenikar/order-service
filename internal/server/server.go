@@ -13,7 +13,7 @@ import (
 func StartServer(config *config.Config, orderService *service.OrderService) {
 	r := gin.Default()
 
-	// создаем обработчик заказов
+	// Создаем обработчик
 	orderHandler := handler.NewOrderHandler(orderService)
 
 	// настраиваем маршруты
