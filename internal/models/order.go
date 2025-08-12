@@ -1,7 +1,7 @@
 package models
 
 type Order struct {
-	OrederUID         string   `json:"order_uid" db:"order_uid"`
+	OrderUID          string   `json:"order_uid" db:"order_uid"`
 	TrackNumber       string   `json:"track_number" db:"track_number"`
 	Entry             string   `json:"entry" db:"entry"`
 	Locale            string   `json:"locale" db:"locale"`

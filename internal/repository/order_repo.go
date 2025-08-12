@@ -34,7 +34,7 @@ func (r *OrderRepository) SaveOrder(order *models.Order) error {
 	}
 
 	// Сохраняем доставку
-	order.Delivery.OrderUID = order.OrederUID
+	order.Delivery.OrderUID = order.OrderUID
 	_, err = tx.NamedExec(`INSERT INTO deliveries (order_uid, name, phone, zip, city, address, region, email)
         VALUES (:order_uid, :name, :phone, :zip, :city, :address, :region, :email)
         ON CONFLICT (order_uid) DO NOTHING`, order.Delivery)
@@ -43,7 +43,7 @@ func (r *OrderRepository) SaveOrder(order *models.Order) error {
 	}
 
 	// Сохраняем платеж
-	order.Payment.OrderUID = order.OrederUID
+	order.Payment.OrderUID = order.OrderUID
 	_, err = tx.NamedExec(`INSERT INTO payments (order_uid, transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee)
         VALUES (:order_uid, :transaction, :request_id, :currency, :provider, :amount, :payment_dt, :bank, :delivery_cost, :goods_total, :custom_fee)
         ON CONFLICT (order_uid) DO NOTHING`, order.Payment)
@@ -53,7 +53,7 @@ func (r *OrderRepository) SaveOrder(order *models.Order) error {
 
 	// Сохраняем товары
 	for _, item := range order.Items {
-		item.OrderUID = order.OrederUID
+		item.OrderUID = order.OrderUID
 		_, err = tx.NamedExec(`INSERT INTO items (order_uid, chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status)
             VALUES (:order_uid, :chrt_id, :track_number, :price, :rid, :name, :sale, :size, :total_price, :nm_id, :brand, :status)
             ON CONFLICT (chrt_id) DO NOTHING`, item)
