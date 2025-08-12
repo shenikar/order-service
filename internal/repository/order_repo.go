@@ -84,3 +84,38 @@ func (r *OrderRepository) GetAllOrders() ([]models.Order, error) {
 	}
 	return orders, nil
 }
+
+// GetItemByOrderUID возвращает товары по для конкретного заказа
+func (r *OrderRepository) GetItemByOrderUID(orderUID string) ([]models.Item, error) {
+	query := `SELECT chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status
+        FROM items WHERE order_uid = $1`
+
+	var items []models.Item
+	err := r.db.Select(&items, query, orderUID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get items for order %s: %w", orderUID, err)
+	}
+
+	return items, nil
+}
+
+// GetOrderByUID возвращает заказ по его уникальному идентификатору
+func (r *OrderRepository) GetOrderByUID(orderUID string) (*models.Order, error) {
+	query := `SELECT o.order_uid, o.track_number, o.entry, o.locale, o.internal_signature, o.customer_id,
+               o.delivery_service, o.shardkey, o.sm_id, o.date_created, o.oof_shard,
+               d.name, d.phone, d.zip, d.city, d.address, d.region, d.email,
+               p.transaction, p.request_id, p.currency, p.provider, p.amount, p.payment_dt, p.bank,
+               p.delivery_cost, p.goods_total, p.custom_fee
+        	FROM orders o
+        	JOIN deliveries d ON o.order_uid = d.order_uid
+        	JOIN payments p ON o.order_uid = p.order_uid
+        	WHERE o.order_uid = $1
+    	`
+	var order models.Order
+	err := r.db.Get(&order, query, orderUID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get order by UID %s: %w", orderUID, err)
+	}
+
+	return &order, nil
+}
