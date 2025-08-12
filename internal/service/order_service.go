@@ -64,3 +64,22 @@ func (s *OrderService) GetOrderByUID(orderUID string) (*models.Order, error) {
 
 	return order, nil
 }
+
+// RestoreCacheFromDB восстанавливает кэш из БД
+func (s *OrderService) RestoreCacheFromDB() error {
+	orders, err := s.repo.GetAllOrders()
+	if err != nil {
+		return err
+	}
+
+	for _, order := range orders {
+		items, err := s.repo.GetItemByOrderUID(order.OrderUID)
+		if err != nil {
+			continue // Пропускаем заказы с ошибками
+		}
+		order.Items = items
+		s.cache.Set(order)
+	}
+
+	return nil
+}
