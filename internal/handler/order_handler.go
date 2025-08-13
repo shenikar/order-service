@@ -18,8 +18,8 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 	}
 }
 
-// GetOrder получает заказ по OrderUID
-func (h *OrderHandler) GetOrder(c *gin.Context) {
+// GetOrderBy получает заказ по OrderUID
+func (h *OrderHandler) GetOrderByUID(c *gin.Context) {
 	orderUID := c.Param("order_uid")
 
 	order, err := h.orderService.GetOrderByUID(orderUID)
