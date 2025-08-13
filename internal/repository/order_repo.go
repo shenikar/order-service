@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/shenikar/order-service/internal/mapper"
 	"github.com/shenikar/order-service/internal/models"
 )
 
@@ -74,15 +75,14 @@ func (r *OrderRepository) GetAllOrders() ([]models.Order, error) {
                p.delivery_cost, p.goods_total, p.custom_fee
         FROM orders o
         JOIN deliveries d ON o.order_uid = d.order_uid
-        JOIN payments p ON o.order_uid = p.order_uid
-		`
+        JOIN payments p ON o.order_uid = p.order_uid`
 
-	var orders []models.Order
-	err := r.db.Select(&orders, query)
-	if err != nil {
+	var dbOrders []models.OrderDB
+	if err := r.db.Select(&dbOrders, query); err != nil {
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
-	return orders, nil
+
+	return mapper.MapOrdersDBToModels(dbOrders), nil
 }
 
 // GetItemByOrderUID возвращает товары по для конкретного заказа
@@ -109,13 +109,20 @@ func (r *OrderRepository) GetOrderByUID(orderUID string) (*models.Order, error) 
         	FROM orders o
         	JOIN deliveries d ON o.order_uid = d.order_uid
         	JOIN payments p ON o.order_uid = p.order_uid
-        	WHERE o.order_uid = $1
-    	`
-	var order models.Order
-	err := r.db.Get(&order, query, orderUID)
-	if err != nil {
+        	WHERE o.order_uid = $1`
+
+	var dbo models.OrderDB
+	if err := r.db.Get(&dbo, query, orderUID); err != nil {
 		return nil, fmt.Errorf("failed to get order by UID %s: %w", orderUID, err)
 	}
+
+	order := mapper.MapOrderDBToModel(dbo)
+
+	items, err := r.GetItemByOrderUID(orderUID)
+	if err != nil {
+		return nil, err
+	}
+	order.Items = items
 
 	return &order, nil
 }
