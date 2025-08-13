@@ -1,6 +1,8 @@
 package service
 
 import (
+	"log"
+
 	"github.com/shenikar/order-service/internal/cache"
 	"github.com/shenikar/order-service/internal/models"
 	"github.com/shenikar/order-service/internal/repository"
@@ -19,7 +21,7 @@ func NewOrderService(repo *repository.OrderRepository, cache *cache.Cache) *Orde
 	}
 }
 
-// SaveOrder сохраняет заказ и обновляет кэш
+// SaveOrder сохраняет заказ
 func (s *OrderService) SaveOrder(order *models.Order) error {
 	// Сохраняем заказ в БД
 	if err := s.repo.SaveOrder(order); err != nil {
@@ -33,9 +35,6 @@ func (s *OrderService) SaveOrder(order *models.Order) error {
 	}
 	order.Items = items
 
-	// Обновляем кэш
-	s.cache.Set(*order)
-
 	return nil
 }
 
@@ -43,6 +42,7 @@ func (s *OrderService) SaveOrder(order *models.Order) error {
 func (s *OrderService) GetOrderByUID(orderUID string) (*models.Order, error) {
 	// проверяем кэш
 	if order, found := s.cache.Get(orderUID); found {
+		log.Printf("Order %s retrieved from cache", orderUID)
 		return &order, nil
 	}
 
@@ -61,6 +61,7 @@ func (s *OrderService) GetOrderByUID(orderUID string) (*models.Order, error) {
 
 	// Обновляем кэш
 	s.cache.Set(*order)
+	log.Printf("Order %s retrieved from database", orderUID)
 
 	return order, nil
 }
