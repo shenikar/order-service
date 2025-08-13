@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Order Lookup</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px 0 0 5px;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #status {
+            margin: 15px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .loading {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+            max-height: 500px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+        .example {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 Order Lookup Service</h1>
+        
+        <div class="input-group">
+            <input type="text" id="orderId" placeholder="Enter Order UID (e.g., b563feb7b2b84b6test)" style="width: 300px;">
+            <button onclick="fetchOrder()">Get Order</button>
+        </div>
+        
+        <div id="status"></div>
+        <pre id="result"></pre>
+        
+        <div class="example">
+            <strong>Example Order UID:</strong><br>
+            b563feb7b2b84b6test<br>
+            WBILMTESTTRACK<br>
+            order-12345
+        </div>
+    </div>
+
+    <script>
+        async function fetchOrder() {
+            const id = document.getElementById("orderId").value.trim();
+            const resultElement = document.getElementById("result");
+            const statusElement = document.getElementById("status");
+            
+            if (!id) {
+                showStatus("Please enter order ID", "error");
+                return;
+            }
+
+            try {
+                showStatus("Loading...", "loading");
+                resultElement.textContent = '';
+                
+                const res = await fetch(`/orders/${id}`);
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showStatus("✅ Order found!", "success");
+                    resultElement.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    showStatus(`❌ ${data.error || 'Order not found'}`, "error");
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, "error");
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusElement = document.getElementById("status");
+            statusElement.textContent = message;
+            statusElement.className = type;
+        }
+
+        // Добавляем поддержку Enter
+        document.getElementById("orderId").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                fetchOrder();
+            }
+        });
+
+        // Фокус на поле ввода при загрузке
+        window.addEventListener("load", function() {
+            document.getElementById("orderId").focus();
+        });
+    </script>
+</body>
+</html>
