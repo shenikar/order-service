@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/shenikar/order-service/config"
 	"github.com/shenikar/order-service/internal/models"
 )
 
@@ -18,52 +19,52 @@ var emails = []string{"test@gmail.com", "alice@example.com", "bob@example.com"}
 var brands = []string{"Vivienne Sabo", "Maybelline", "L'Oreal"}
 var products = []string{"Mascaras", "Lipstick", "Foundation"}
 
-func randomStringFromSlice(slice []string) string {
-	return slice[rand.Intn(len(slice))]
+func randomStringFromSlice(r *rand.Rand, slice []string) string {
+	return slice[r.Intn(len(slice))]
 }
 
-func randomOrder() *models.Order {
+func randomOrder(r *rand.Rand) *models.Order {
 	now := time.Now()
-	uid := fmt.Sprintf("%x", rand.Int63())
+	uid := fmt.Sprintf("%x", r.Int63())
 
 	return &models.Order{
 		OrderUID:        uid,
 		TrackNumber:     fmt.Sprintf("WBILM%s", uid[:8]),
 		Entry:           "WBIL",
 		Locale:          "en",
-		CustomerID:      fmt.Sprintf("customer%d", rand.Intn(1000)),
+		CustomerID:      fmt.Sprintf("customer%d", r.Intn(1000)),
 		DeliveryService: "meest",
-		ShardKey:        fmt.Sprintf("%d", rand.Intn(10)),
-		SmID:            rand.Intn(100),
+		ShardKey:        fmt.Sprintf("%d", r.Intn(10)),
+		SmID:            r.Intn(100),
 		DateCreated:     now.Format(time.RFC3339),
 		Delivery: models.Delivery{
-			Name:    randomStringFromSlice(names),
-			Phone:   fmt.Sprintf("+972%07d", rand.Intn(10000000)),
-			Zip:     fmt.Sprintf("%06d", rand.Intn(1000000)),
-			City:    randomStringFromSlice(cities),
-			Address: fmt.Sprintf("Street %d", rand.Intn(100)),
+			Name:    randomStringFromSlice(r, names),
+			Phone:   fmt.Sprintf("+972%07d", r.Intn(10000000)),
+			Zip:     fmt.Sprintf("%06d", r.Intn(1000000)),
+			City:    randomStringFromSlice(r, cities),
+			Address: fmt.Sprintf("Street %d", r.Intn(100)),
 			Region:  "Kraiot",
-			Email:   randomStringFromSlice(emails),
+			Email:   randomStringFromSlice(r, emails),
 		},
 		Payment: models.Payment{
 			Transaction:  uid,
 			Currency:     "USD",
 			Provider:     "wbpay",
-			Amount:       rand.Intn(2000),
+			Amount:       r.Intn(2000),
 			PaymentDT:    now.Unix(),
 			Bank:         "alpha",
-			DeliveryCost: rand.Intn(500),
-			GoodsTotal:   rand.Intn(1500),
+			DeliveryCost: r.Intn(500),
+			GoodsTotal:   r.Intn(1500),
 			CustomFee:    0,
 		},
 		Items: []models.Item{
 			{
-				ChrtID:      rand.Intn(1000000),
+				ChrtID:      r.Intn(1000000),
 				TrackNumber: fmt.Sprintf("WBILM%s", uid[:8]),
-				Price:       rand.Intn(1000),
-				Name:        randomStringFromSlice(products),
-				TotalPrice:  rand.Intn(1000),
-				Brand:       randomStringFromSlice(brands),
+				Price:       r.Intn(1000),
+				Name:        randomStringFromSlice(r, products),
+				TotalPrice:  r.Intn(1000),
+				Brand:       randomStringFromSlice(r, brands),
 				Status:      202,
 			},
 		},
@@ -71,18 +72,34 @@ func randomOrder() *models.Order {
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal("Failed to load config:", err)
+	}
 
+	// Локальный генератор случайных чисел
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Настройка Kafka writer
 	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: []string{"localhost:9092"},
-		Topic:   "orders",
+		Brokers: cfg.Kafka.Brokers,
+		Topic:   cfg.Kafka.Topic,
 	})
-	defer writer.Close()
+	defer func() {
+		if err := writer.Close(); err != nil {
+			log.Println("Failed to close Kafka writer:", err)
+		}
+	}()
 
 	for i := 0; i < 5; i++ {
-		order := randomOrder()
-		data, _ := json.Marshal(order)
-		err := writer.WriteMessages(context.TODO(),
+		order := randomOrder(r)
+		data, err := json.Marshal(order)
+		if err != nil {
+			log.Println("Failed to marshal order:", err)
+			continue
+		}
+
+		err = writer.WriteMessages(context.Background(),
 			kafka.Message{
 				Key:   []byte(order.OrderUID),
 				Value: data,
@@ -93,6 +110,7 @@ func main() {
 		} else {
 			log.Println("Order sent:", order.OrderUID)
 		}
+
 		time.Sleep(1 * time.Second)
 	}
 }
