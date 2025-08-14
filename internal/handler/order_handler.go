@@ -22,6 +22,12 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 func (h *OrderHandler) GetOrderByUID(c *gin.Context) {
 	orderUID := c.Param("order_uid")
 
+	// Проверка на наличие OrderUID
+	if orderUID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order UID is required"})
+		return
+	}
+
 	order, err := h.orderService.GetOrderByUID(orderUID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
