@@ -12,7 +12,6 @@ type Config struct {
 	Database DatabaseConfig
 	Kafka    KafkaConfig
 	Server   ServerConfig
-	Cache    CacheConfig
 }
 
 type DatabaseConfig struct {
@@ -33,11 +32,6 @@ type KafkaConfig struct {
 type ServerConfig struct {
 	Host string
 	Port string
-}
-
-type CacheConfig struct {
-	Size     string
-	TTLHours string
 }
 
 // Загрузка конфигурации из .env файла
@@ -63,10 +57,6 @@ func LoadConfig() (*Config, error) {
 		Server: ServerConfig{
 			Host: os.Getenv("SERVER_HOST"),
 			Port: os.Getenv("SERVER_PORT"),
-		},
-		Cache: CacheConfig{
-			Size:     os.Getenv("CACHE_SIZE"),
-			TTLHours: os.Getenv("CACHE_TTL_HOURS"),
 		},
 	}
 	return config, nil
