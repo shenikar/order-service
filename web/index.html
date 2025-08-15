@@ -85,7 +85,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📦 Order Lookup Service</h1>
+        <h1>Order Lookup Service</h1>
         
         <div class="input-group">
             <input type="text" id="orderId" placeholder="Enter Order UID (e.g., b563feb7b2b84b6test)" style="width: 300px;">
@@ -122,13 +122,13 @@
                 const data = await res.json();
                 
                 if (res.ok) {
-                    showStatus("✅ Order found!", "success");
+                    showStatus("Order found!", "success");
                     resultElement.textContent = JSON.stringify(data, null, 2);
                 } else {
-                    showStatus(`❌ ${data.error || 'Order not found'}`, "error");
+                    showStatus(`${data.error || 'Order not found'}`, "error");
                 }
             } catch (error) {
-                showStatus(`❌ Error: ${error.message}`, "error");
+                showStatus(`Error: ${error.message}`, "error");
             }
         }
 
