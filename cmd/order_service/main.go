@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	"github.com/shenikar/order-service/config"
 	"github.com/shenikar/order-service/internal/cache"
 	"github.com/shenikar/order-service/internal/db"
@@ -32,7 +38,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v", err)
 	}
-	defer dbConn.Close()
 
 	// Создаем компоненты приложения
 	repo := repository.NewOrderRepository(dbConn)
@@ -51,6 +56,9 @@ func main() {
 
 	// Запускаем HTTP сервер
 	server.StartServer(config, orderService)
+
+	//Корректное завершение работы приложения
+	gracefulShutdown(orderService, dbConn)
 }
 
 func runMigrations(config *config.Config) error {
@@ -68,4 +76,35 @@ func runMigrations(config *config.Config) error {
 
 	log.Println("Database migrations applied successfully")
 	return nil
+}
+
+// Graceful shutdown
+func gracefulShutdown(orderService *service.OrderService, dbConn *sqlx.DB) {
+	// канал для сигналов завершения
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutdown signal received")
+
+	// Timeout для завершения работы
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Завершение Kafka consumer
+	kafka.StopConsumer()
+	log.Println("Kafka consumer stopped")
+
+	// Завершение HTTP сервера
+	if err := server.ShutdownServer(ctx); err != nil {
+		log.Printf("Error shutting down server: %v", err)
+	}
+
+	// Закрываем БД
+	if err := dbConn.Close(); err != nil {
+		log.Printf("Error closing DB connection: %v", err)
+	}
+	log.Println("Database connection closed")
+
+	log.Println("Shutdown completed successfully")
 }
