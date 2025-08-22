@@ -11,4 +11,5 @@ func SetupRoutes(engine *gin.Engine, orderHandler *handler.OrderHandler) {
 	// Основные маршруты
 	engine.GET("/", orderHandler.Index)
 	engine.GET("/orders/:order_uid", orderHandler.GetOrderByUID)
+	engine.GET("/health", orderHandler.HealthCheck)
 }

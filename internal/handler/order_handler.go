@@ -41,3 +41,8 @@ func (h *OrderHandler) GetOrderByUID(c *gin.Context) {
 func (h *OrderHandler) Index(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", nil)
 }
+
+// HealthCheck проверяет состояние сервиса
+func (h *OrderHandler) HealthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
