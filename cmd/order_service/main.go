@@ -12,6 +12,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
+	kf "github.com/segmentio/kafka-go"
 	"github.com/shenikar/order-service/config"
 	"github.com/shenikar/order-service/internal/cache"
 	"github.com/shenikar/order-service/internal/db"
@@ -51,14 +52,18 @@ func main() {
 		log.Println("Cache restored from database successfully")
 	}
 
-	// Запускаем Kafka consumer в отдельной горутине
-	go kafka.StartConsumer(config, orderService)
+	// Создаем context для Kafka consumer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Запускаем Kafka consumer
+	reader := kafka.StartConsumer(ctx, config, orderService)
 
 	// Запускаем HTTP сервер
 	server.StartServer(config, orderService)
 
-	//Корректное завершение работы приложения
-	gracefulShutdown(orderService, dbConn)
+	// Корректное завершение работы приложения
+	gracefulShutdown(orderService, dbConn, reader, cancel)
 }
 
 func runMigrations(config *config.Config) error {
@@ -79,23 +84,25 @@ func runMigrations(config *config.Config) error {
 }
 
 // Graceful shutdown
-func gracefulShutdown(orderService *service.OrderService, dbConn *sqlx.DB) {
-	// канал для сигналов завершения
+func gracefulShutdown(orderService *service.OrderService, dbConn *sqlx.DB, reader *kf.Reader, cancel context.CancelFunc) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Println("Shutdown signal received")
 
-	// Timeout для завершения работы
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Отменяем context для Kafka
+	cancel()
 
-	// Завершение Kafka consumer
-	kafka.StopConsumer()
+	// Timeout для завершения HTTP сервера
+	ctx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	// Завершаем Kafka consumer
+	kafka.StopConsumer(reader, nil)
 	log.Println("Kafka consumer stopped")
 
-	// Завершение HTTP сервера
+	// Завершаем HTTP сервер
 	if err := server.ShutdownServer(ctx); err != nil {
 		log.Printf("Error shutting down server: %v", err)
 	}
