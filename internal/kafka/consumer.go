@@ -13,6 +13,7 @@ import (
 	"github.com/shenikar/order-service/internal/service"
 )
 
+// StartConsumer запускает Kafka consumer для обработки сообщений
 func StartConsumer(ctx context.Context, cfg *config.Config, orderService *service.OrderService) *kafka.Reader {
 	dialer := &kafka.Dialer{
 		Timeout:   10 * time.Second,
@@ -69,6 +70,7 @@ func StartConsumer(ctx context.Context, cfg *config.Config, orderService *servic
 	return reader
 }
 
+// StopConsumer корректно завершает работу Kafka consumer
 func StopConsumer(reader *kafka.Reader, cancel context.CancelFunc) {
 	if cancel != nil {
 		cancel()
