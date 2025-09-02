@@ -22,6 +22,11 @@ import (
 	"github.com/shenikar/order-service/internal/service"
 )
 
+// @title Order Service API
+// @version 1.0
+// @description API для управления заказами
+// @host localhost:8080
+// @BasePath /
 func main() {
 	// Загружаем конфигурацию
 	config, err := config.LoadConfig()

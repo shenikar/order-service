@@ -18,7 +18,15 @@ func NewOrderHandler(orderService *service.OrderService) *OrderHandler {
 	}
 }
 
-// GetOrderBy получает заказ по OrderUID
+// GetOrderByUID получает заказ по OrderUID
+// @Summary Получить заказ по UID
+// @Description Получает заказ с товарами по уникальному идентификатору
+// @Tags orders
+// @Param order_uid path string true "Order UID"
+// @Success 200 {object} models.Order
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /orders/{order_uid} [get]
 func (h *OrderHandler) GetOrderByUID(c *gin.Context) {
 	orderUID := c.Param("order_uid")
 
@@ -37,12 +45,24 @@ func (h *OrderHandler) GetOrderByUID(c *gin.Context) {
 	c.JSON(http.StatusOK, order)
 }
 
-// Index отображает главную страницу
+// Index godoc
+// @Summary Главная страница сервиса
+// @Description Отображает главную страницу
+// @Tags general
+// @Produce html
+// @Success 200 {string} string "HTML page"
+// @Router / [get]
 func (h *OrderHandler) Index(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", nil)
 }
 
-// HealthCheck проверяет состояние сервиса
+// HealthCheck godoc
+// @Summary Проверка состояния сервиса
+// @Description Возвращает статус сервиса (ok)
+// @Tags general
+// @Produce  json
+// @Success 200 {object} map[string]string
+// @Router /health [get]
 func (h *OrderHandler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
