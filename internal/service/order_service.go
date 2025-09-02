@@ -9,12 +9,12 @@ import (
 )
 
 type OrderService struct {
-	repo  *repository.OrderRepository
+	repo  repository.OrderRepositoryInterface
 	cache *cache.Cache // Добавляем кэш для оптимизации
 }
 
 // NewOrderService создает новый экземпляр OrderService
-func NewOrderService(repo *repository.OrderRepository, cache *cache.Cache) *OrderService {
+func NewOrderService(repo repository.OrderRepositoryInterface, cache *cache.Cache) *OrderService {
 	return &OrderService{
 		repo:  repo,
 		cache: cache,

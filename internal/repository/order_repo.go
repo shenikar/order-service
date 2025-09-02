@@ -8,6 +8,13 @@ import (
 	"github.com/shenikar/order-service/internal/models"
 )
 
+type OrderRepositoryInterface interface {
+	SaveOrder(order *models.Order) error
+	GetOrderByUID(orderUID string) (*models.Order, error)
+	GetItemByOrderUID(orderUID string) ([]models.Item, error)
+	GetAllOrders() ([]models.Order, error)
+}
+
 type OrderRepository struct {
 	db *sqlx.DB
 }
