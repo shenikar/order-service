@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 
@@ -33,7 +34,7 @@ func StartServer(config *config.Config, orderService *service.OrderService) {
 	}
 
 	go func() {
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
