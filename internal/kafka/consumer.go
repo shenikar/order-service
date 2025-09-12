@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"strconv"
 	"time"
@@ -33,37 +34,53 @@ func StartConsumer(ctx context.Context, cfg *config.Config, orderService *servic
 		Dialer:      dialer,
 		MinBytes:    1,
 		MaxBytes:    10e6,
+		CommitInterval: 0,
 	})
 
 	go func() {
 		for {
-			msg, err := reader.ReadMessage(ctx)
+			msg, err := reader.FetchMessage(ctx)
 			if err != nil {
-				if ctx.Err() != nil {
+				if errors.Is(err, context.Canceled) {
 					log.Println("Kafka consumer context canceled, stopping")
 					return
+				}
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Println("Kafka consumer context deadline exceeded, stopping")
+        			return
 				}
 				log.Printf("Failed to read message: %v", err)
 				continue
 			}
 
-			var order models.Order
-			if err := json.Unmarshal(msg.Value, &order); err != nil {
+			order := &models.Order{}
+			if err := json.Unmarshal(msg.Value, order); err != nil {
 				log.Printf("Invalid JSON, ignoring: %v", err)
+				_ = reader.CommitMessages(ctx, msg)
 				continue
 			}
 
-			if order.OrderUID == "" {
+			// Валидация всех полей через validator
+			if !orderService.ValidateOrder(order) {
 				log.Printf("Invalid order data, ignoring: %+v", order)
+				_ = reader.CommitMessages(ctx, msg)
 				continue
 			}
-
-			if err := orderService.SaveOrder(&order); err != nil {
+			
+			// Сохранение в БД
+			if err := orderService.SaveOrder(order); err != nil {
 				log.Printf("Failed to save order: %v", err)
+				// Не коммитим сообщение — оно будет прочитано снова, можно будет восстановить обработку
 				continue
 			}
+			
+			// Коммитим сообщение после успешной обработки
+			if err := reader.CommitMessages(ctx, msg); err != nil {
+				log.Printf("Failed to commit message %s: %v", order.OrderUID, err)
+			} else {
+				log.Printf("Order processed: %s", order.OrderUID)
+			}
 
-			log.Printf("Order processed: %s", order.OrderUID)
 		}
 	}()
 
