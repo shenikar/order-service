@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -12,6 +13,7 @@ type Config struct {
 	Database DatabaseConfig
 	Kafka    KafkaConfig
 	Server   ServerConfig
+	Cache    CacheConfig
 }
 
 type DatabaseConfig struct {
@@ -32,6 +34,11 @@ type KafkaConfig struct {
 type ServerConfig struct {
 	Host string
 	Port string
+}
+
+type CacheConfig struct {
+	TTL      int
+	Capacity int
 }
 
 // Загрузка конфигурации из .env файла
@@ -58,6 +65,10 @@ func LoadConfig() (*Config, error) {
 			Host: os.Getenv("SERVER_HOST"),
 			Port: os.Getenv("SERVER_PORT"),
 		},
+		Cache: CacheConfig{
+			TTL:      mustParseEnvInt("CACHE_TTL"),
+			Capacity: mustParseEnvInt("CACHE_CAPACITY"),
+		},
 	}
 	return config, nil
 }
@@ -76,4 +87,14 @@ func (c *Config) GetDatabaseUrl() string {
 // GetServerAddress формирует адрес сервера
 func (c *Config) GetServerAddress() string {
 	return fmt.Sprintf("%s:%s", c.Server.Host, c.Server.Port)
+}
+
+// mustParseEnvInt парсит int из env, паникует если не удалось
+func mustParseEnvInt(key string) int {
+	val := os.Getenv(key)
+	v, err := strconv.Atoi(val)
+	if err != nil {
+		panic("env " + key + " must be int, got: " + val)
+	}
+	return v
 }
