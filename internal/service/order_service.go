@@ -3,10 +3,13 @@ package service
 import (
 	"log"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/shenikar/order-service/internal/cache"
 	"github.com/shenikar/order-service/internal/models"
 	"github.com/shenikar/order-service/internal/repository"
 )
+
+var validate = validator.New()
 
 type OrderService struct {
 	repo  repository.OrderRepositoryInterface
@@ -83,4 +86,13 @@ func (s *OrderService) RestoreCacheFromDB() error {
 	}
 
 	return nil
+}
+
+func (s *OrderService) ValidateOrder(order *models.Order) bool {
+	err := validate.Struct(order)
+	if err != nil {
+		log.Printf("Invalid order %s: %v", order.OrderUID, err)
+		return false
+	}
+	return true
 }
