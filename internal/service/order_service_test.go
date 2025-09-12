@@ -2,7 +2,9 @@ package service
 
 import (
 	"errors"
+	"log"
 	"testing"
+	"time"
 
 	"github.com/shenikar/order-service/internal/cache"
 	"github.com/shenikar/order-service/internal/models"
@@ -49,11 +51,14 @@ func TestSaveOrder_Success(t *testing.T) {
 			return []models.Item{{ChrtID: 1, TrackNumber: "TN123"}}, nil
 		},
 	}
-	c := cache.NewCache()
+	c, err := cache.NewCache(100, time.Minute*5)
+	if err != nil {
+		log.Fatalf("Error creating cache: %v", err)
+	}
 	svc := NewOrderService(repo, c)
 
 	order := &models.Order{OrderUID: "uid123"}
-	err := svc.SaveOrder(order)
+	err = svc.SaveOrder(order)
 
 	assert.NoError(t, err)
 	assert.Len(t, order.Items, 1)
@@ -66,11 +71,12 @@ func TestSaveOrder_RepoError(t *testing.T) {
 			return errors.New("db error")
 		},
 	}
-	c := cache.NewCache()
+	c, err := cache.NewCache(100, time.Minute*5)
+	assert.NoError(t, err)
 	svc := NewOrderService(repo, c)
 
 	order := &models.Order{OrderUID: "uid123"}
-	err := svc.SaveOrder(order)
+	err = svc.SaveOrder(order)
 
 	assert.Error(t, err)
 	assert.Equal(t, "db error", err.Error())
@@ -78,7 +84,8 @@ func TestSaveOrder_RepoError(t *testing.T) {
 
 func TestGetOrderByUID_FromCache(t *testing.T) {
 	repo := &mockRepo{}
-	c := cache.NewCache()
+	c, err := cache.NewCache(100, time.Minute*5)
+	assert.NoError(t, err)
 	svc := NewOrderService(repo, c)
 
 	// кладём заказ в кэш
@@ -100,7 +107,8 @@ func TestGetOrderByUID_FromDB(t *testing.T) {
 			return []models.Item{{ChrtID: 2, TrackNumber: "TN999"}}, nil
 		},
 	}
-	c := cache.NewCache()
+	c, err := cache.NewCache(100, time.Minute*5)
+	assert.NoError(t, err)
 	svc := NewOrderService(repo, c)
 
 	order, err := svc.GetOrderByUID("uid456")
@@ -122,7 +130,8 @@ func TestGetOrderByUID_DBError(t *testing.T) {
 			return nil, errors.New("not found")
 		},
 	}
-	c := cache.NewCache()
+	c, err := cache.NewCache(100, time.Minute*5)
+	assert.NoError(t, err)
 	svc := NewOrderService(repo, c)
 
 	order, err := svc.GetOrderByUID("bad_uid")
@@ -144,10 +153,11 @@ func TestRestoreCacheFromDB(t *testing.T) {
 			return []models.Item{{ChrtID: 1, TrackNumber: "TN_" + uid}}, nil
 		},
 	}
-	c := cache.NewCache()
+	c, err := cache.NewCache(100, time.Minute*5)
+	assert.NoError(t, err)
 	svc := NewOrderService(repo, c)
 
-	err := svc.RestoreCacheFromDB()
+	err = svc.RestoreCacheFromDB()
 
 	assert.NoError(t, err)
 
