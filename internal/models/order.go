@@ -12,8 +12,8 @@ type Order struct {
 	SmID              int      `json:"sm_id" db:"sm_id"`
 	DateCreated       string   `json:"date_created" db:"date_created" validate:"required"`
 	OofShard          string   `json:"oof_shard" db:"oof_shard"`
-	Delivery          Delivery `json:"delivery" validate:"required,dive"`
-	Payment           Payment  `json:"payment" validate:"required,dive"`
+	Delivery          Delivery `json:"delivery" validate:"required"`
+	Payment           Payment  `json:"payment" validate:"required"`
 	Items             []Item   `json:"items" validate:"required,dive,required"`
 }
 
