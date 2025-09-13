@@ -3,69 +3,58 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"math/rand"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/segmentio/kafka-go"
 	"github.com/shenikar/order-service/config"
 	"github.com/shenikar/order-service/internal/models"
 )
 
-var cities = []string{"Kiryat Mozkin", "Tel Aviv", "Haifa", "Jerusalem"}
-var names = []string{"Test Testov", "Alice Smith", "Bob Johnson"}
-var emails = []string{"test@gmail.com", "alice@example.com", "bob@example.com"}
-var brands = []string{"Vivienne Sabo", "Maybelline", "L'Oreal"}
-var products = []string{"Mascaras", "Lipstick", "Foundation"}
-
-func randomStringFromSlice(r *rand.Rand, slice []string) string {
-	return slice[r.Intn(len(slice))]
-}
-
-func randomOrder(r *rand.Rand) *models.Order {
+func randomOrder() *models.Order {
+	gofakeit.Seed(time.Now().UnixNano())
 	now := time.Now()
-	uid := fmt.Sprintf("%x", r.Int63())
-
 	return &models.Order{
-		OrderUID:        uid,
-		TrackNumber:     fmt.Sprintf("WBILM%s", uid[:8]),
+		OrderUID:        gofakeit.UUID(),
+		TrackNumber:     gofakeit.Regex("WBILM[0-9A-Z]{8}"),
 		Entry:           "WBIL",
-		Locale:          "en",
-		CustomerID:      fmt.Sprintf("customer%d", r.Intn(1000)),
-		DeliveryService: "meest",
-		ShardKey:        fmt.Sprintf("%d", r.Intn(10)),
-		SmID:            r.Intn(100),
+		Locale:          gofakeit.Language(),
+		CustomerID:      gofakeit.Username(),
+		DeliveryService: gofakeit.Company(),
+		ShardKey:        gofakeit.DigitN(1),
+		SmID:            gofakeit.Number(0, 100),
 		DateCreated:     now.Format(time.RFC3339),
 		Delivery: models.Delivery{
-			Name:    randomStringFromSlice(r, names),
-			Phone:   fmt.Sprintf("+972%07d", r.Intn(10000000)),
-			Zip:     fmt.Sprintf("%06d", r.Intn(1000000)),
-			City:    randomStringFromSlice(r, cities),
-			Address: fmt.Sprintf("Street %d", r.Intn(100)),
-			Region:  "Kraiot",
-			Email:   randomStringFromSlice(r, emails),
+			Name:    gofakeit.Name(),
+			Phone:   gofakeit.Phone(),
+			Zip:     gofakeit.Zip(),
+			City:    gofakeit.City(),
+			Address: gofakeit.Street(),
+			Region:  gofakeit.State(),
+			Email:   gofakeit.Email(),
 		},
 		Payment: models.Payment{
-			Transaction:  uid,
-			Currency:     "USD",
-			Provider:     "wbpay",
-			Amount:       r.Intn(2000),
+			Transaction:  gofakeit.UUID(),
+			Currency:     gofakeit.CurrencyShort(),
+			Provider:     gofakeit.Company(),
+			Amount:       int(gofakeit.Price(100, 2000)),
 			PaymentDT:    now.Unix(),
-			Bank:         "alpha",
-			DeliveryCost: r.Intn(500),
-			GoodsTotal:   r.Intn(1500),
+			Bank:         gofakeit.Company(),
+			DeliveryCost: int(gofakeit.Price(0, 500)),
+			GoodsTotal:   int(gofakeit.Price(0, 1500)),
 			CustomFee:    0,
 		},
 		Items: []models.Item{
 			{
-				ChrtID:      r.Intn(1000000),
-				TrackNumber: fmt.Sprintf("WBILM%s", uid[:8]),
-				Price:       r.Intn(1000),
-				Name:        randomStringFromSlice(r, products),
-				TotalPrice:  r.Intn(1000),
-				Brand:       randomStringFromSlice(r, brands),
+				ChrtID:      gofakeit.Number(1000, 999999),
+				TrackNumber: gofakeit.Regex("WBILM[0-9A-Z]{8}"),
+				Price:       int(gofakeit.Price(100, 1000)),
+				Name:        gofakeit.ProductName(),
+				TotalPrice:  int(gofakeit.Price(100, 1000)),
+				Brand:       gofakeit.Company(),
 				Status:      202,
+				NmID:        gofakeit.Number(1, 999999),
 			},
 		},
 	}
@@ -76,9 +65,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to load config:", err)
 	}
-
-	// Локальный генератор случайных чисел
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// Настройка Kafka writer
 	writer := kafka.NewWriter(kafka.WriterConfig{
@@ -92,7 +78,7 @@ func main() {
 	}()
 
 	for i := 0; i < 5; i++ {
-		order := randomOrder(r)
+		order := randomOrder()
 		data, err := json.Marshal(order)
 		if err != nil {
 			log.Println("Failed to marshal order:", err)
