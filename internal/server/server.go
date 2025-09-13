@@ -15,7 +15,7 @@ import (
 
 var httpServer *http.Server
 
-func StartServer(config *config.Config, orderService *service.OrderService) {
+func StartServer(cfg *config.Config, orderService *service.OrderService) {
 	r := gin.Default()
 
 	// Создаем обработчик
@@ -25,7 +25,7 @@ func StartServer(config *config.Config, orderService *service.OrderService) {
 	router.SetupRoutes(r, orderHandler)
 
 	// запускаем сервер
-	addr := config.GetServerAddress()
+	addr := cfg.GetServerAddress()
 	log.Printf("Starting server on %s\n", addr)
 
 	httpServer = &http.Server{

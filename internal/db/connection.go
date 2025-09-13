@@ -9,8 +9,8 @@ import (
 )
 
 // Connect устанавливает соединение с базой данных
-func Connect(config *config.Config) (*sqlx.DB, error) {
-	connStr := config.GetDatabaseUrl()
+func Connect(cfg *config.Config) (*sqlx.DB, error) {
+	connStr := cfg.GetDatabaseUrl()
 
 	db, err := sqlx.Connect("pgx", connStr)
 	if err != nil {

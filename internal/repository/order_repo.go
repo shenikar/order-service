@@ -20,8 +20,8 @@ type OrderRepository struct {
 }
 
 // NewOrderRepository создает новый экземпляр OrderRepository
-func NewOrderRepository(db *sqlx.DB) *OrderRepository {
-	return &OrderRepository{db: db}
+func NewOrderRepository(dbConn *sqlx.DB) *OrderRepository {
+	return &OrderRepository{db: dbConn}
 }
 
 // SaveOrder сохраняет заказ в базе данных
