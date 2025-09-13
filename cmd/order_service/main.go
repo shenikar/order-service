@@ -36,6 +36,9 @@ func main() {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
+	// Инициализируем Kafka DLQ writer
+	kafka.InitDLQWriter(cfg)
+
 	// Выполняем миграции базы данных
 	if err := runMigrations(cfg); err != nil {
 		log.Fatalf("Error running migrations: %v", err)
@@ -113,6 +116,14 @@ func gracefulShutdown(dbConn *sqlx.DB, consumer *kf.Reader, cancel context.Cance
 	// Завершаем Kafka consumer
 	kafka.StopConsumer(consumer, nil)
 	log.Println("Kafka consumer stopped")
+
+	// Завершаем DLQ writer
+	if kafka.DLQWriter != nil {
+		if err := kafka.DLQWriter.Close(); err != nil {
+			log.Printf("Error closing DLQ writer: %v", err)
+		}
+		log.Println("DLQ writer closed")
+	}
 
 	// Завершаем HTTP сервер
 	if err := server.ShutdownServer(ctx); err != nil {
