@@ -26,9 +26,10 @@ type DatabaseConfig struct {
 }
 
 type KafkaConfig struct {
-	Brokers []string
-	Topic   string
-	GroupID string
+	Brokers  []string
+	Topic    string
+	GroupID  string
+	DLQTopic string
 }
 
 type ServerConfig struct {
@@ -57,9 +58,10 @@ func LoadConfig() (*Config, error) {
 			SSLMode:  os.Getenv("DB_SSLMODE"),
 		},
 		Kafka: KafkaConfig{
-			Brokers: []string{os.Getenv("KAFKA_BROKERS")},
-			Topic:   os.Getenv("KAFKA_TOPIC"),
-			GroupID: os.Getenv("KAFKA_GROUP_ID"),
+			Brokers:  []string{os.Getenv("KAFKA_BROKERS")},
+			Topic:    os.Getenv("KAFKA_TOPIC"),
+			GroupID:  os.Getenv("KAFKA_GROUP_ID"),
+			DLQTopic: os.Getenv("KAFKA_DLQ_TOPIC"),
 		},
 		Server: ServerConfig{
 			Host: os.Getenv("SERVER_HOST"),

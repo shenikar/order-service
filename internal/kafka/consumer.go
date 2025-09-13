@@ -14,8 +14,11 @@ import (
 	"github.com/shenikar/order-service/internal/service"
 )
 
+var DLQWriter *kafka.Writer
+
 // StartConsumer запускает Kafka consumer для обработки сообщений
 func StartConsumer(ctx context.Context, cfg *config.Config, orderService *service.OrderService) *kafka.Reader {
+	InitDLQWriter(cfg)
 	dialer := &kafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
@@ -27,13 +30,13 @@ func StartConsumer(ctx context.Context, cfg *config.Config, orderService *servic
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:     cfg.Kafka.Brokers,
-		Topic:       cfg.Kafka.Topic,
-		GroupID:     cfg.Kafka.GroupID,
-		StartOffset: kafka.FirstOffset,
-		Dialer:      dialer,
-		MinBytes:    1,
-		MaxBytes:    10e6,
+		Brokers:        cfg.Kafka.Brokers,
+		Topic:          cfg.Kafka.Topic,
+		GroupID:        cfg.Kafka.GroupID,
+		StartOffset:    kafka.FirstOffset,
+		Dialer:         dialer,
+		MinBytes:       1,
+		MaxBytes:       10e6,
 		CommitInterval: 0,
 	})
 
@@ -47,7 +50,7 @@ func StartConsumer(ctx context.Context, cfg *config.Config, orderService *servic
 				}
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Println("Kafka consumer context deadline exceeded, stopping")
-        			return
+					return
 				}
 				log.Printf("Failed to read message: %v", err)
 				continue
@@ -63,17 +66,18 @@ func StartConsumer(ctx context.Context, cfg *config.Config, orderService *servic
 			// Валидация всех полей через validator
 			if !orderService.ValidateOrder(order) {
 				log.Printf("Invalid order data, ignoring: %+v", order)
+				sendToDLQ(msg.Value)
 				_ = reader.CommitMessages(ctx, msg)
 				continue
 			}
-			
+
 			// Сохранение в БД
 			if err := orderService.SaveOrder(order); err != nil {
 				log.Printf("Failed to save order: %v", err)
 				// Не коммитим сообщение — оно будет прочитано снова, можно будет восстановить обработку
 				continue
 			}
-			
+
 			// Коммитим сообщение после успешной обработки
 			if err := reader.CommitMessages(ctx, msg); err != nil {
 				log.Printf("Failed to commit message %s: %v", order.OrderUID, err)
@@ -124,4 +128,28 @@ func ensureTopic(cfg *config.Config, dialer *kafka.Dialer) error {
 		NumPartitions:     1,
 		ReplicationFactor: 1,
 	})
+}
+
+// InitDLQWriter инициализирует Kafka writer для DLQ
+func InitDLQWriter(cfg *config.Config) {
+	DLQWriter = kafka.NewWriter(kafka.WriterConfig{
+		Brokers: cfg.Kafka.Brokers,
+		Topic:   cfg.Kafka.DLQTopic,
+	})
+}
+
+// sendToDLQ отправляет сообщение в DLQ
+func sendToDLQ(data []byte) {
+	if DLQWriter == nil {
+		log.Println("DLQ writer not initialized")
+		return
+	}
+	err := DLQWriter.WriteMessages(context.Background(),
+		kafka.Message{
+			Value: data,
+		},
+	)
+	if err != nil {
+		log.Printf("Failed to send message to DLQ: %v", err)
+	}
 }
