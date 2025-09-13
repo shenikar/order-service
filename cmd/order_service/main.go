@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"errors"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -29,26 +31,31 @@ import (
 // @BasePath /
 func main() {
 	// Загружаем конфигурацию
-	config, err := config.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
 
 	// Выполняем миграции базы данных
-	if err := runMigrations(config); err != nil {
+	if err := runMigrations(cfg); err != nil {
 		log.Fatalf("Error running migrations: %v", err)
 	}
 
 	// Подключаемся к БД
-	dbConn, err := db.Connect(config)
+	dbConn, err := db.Connect(cfg)
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v", err)
 	}
 
 	// Создаем компоненты приложения
 	repo := repository.NewOrderRepository(dbConn)
-	cache := cache.NewCache()
-	orderService := service.NewOrderService(repo, cache)
+
+	cacheOrder, err := cache.NewCache(cfg.Cache.Capacity, time.Duration(cfg.Cache.TTL)*time.Minute)
+	if err != nil {
+		log.Fatalf("Error creating cache: %v", err)
+	}
+
+	orderService := service.NewOrderService(repo, cacheOrder)
 
 	// Восстанавливаем кэш из БД
 	if err := orderService.RestoreCacheFromDB(); err != nil {
@@ -62,17 +69,17 @@ func main() {
 	defer cancel()
 
 	// Запускаем Kafka consumer
-	reader := kafka.StartConsumer(ctx, config, orderService)
+	consumer := kafka.StartConsumer(ctx, cfg, orderService)
 
 	// Запускаем HTTP сервер
-	server.StartServer(config, orderService)
+	server.StartServer(cfg, orderService)
 
 	// Корректное завершение работы приложения
-	gracefulShutdown(orderService, dbConn, reader, cancel)
+	gracefulShutdown(dbConn, consumer, cancel)
 }
 
-func runMigrations(config *config.Config) error {
-	dbURL := config.GetDatabaseUrl()
+func runMigrations(cfg *config.Config) error {
+	dbURL := cfg.GetDatabaseUrl()
 
 	m, err := migrate.New(
 		"file://migrations", dbURL)
@@ -80,7 +87,7 @@ func runMigrations(config *config.Config) error {
 		return err
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return err
 	}
 
@@ -89,7 +96,7 @@ func runMigrations(config *config.Config) error {
 }
 
 // Graceful shutdown
-func gracefulShutdown(orderService *service.OrderService, dbConn *sqlx.DB, reader *kf.Reader, cancel context.CancelFunc) {
+func gracefulShutdown(dbConn *sqlx.DB, consumer *kf.Reader, cancel context.CancelFunc) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -104,7 +111,7 @@ func gracefulShutdown(orderService *service.OrderService, dbConn *sqlx.DB, reade
 	defer shutdownCancel()
 
 	// Завершаем Kafka consumer
-	kafka.StopConsumer(reader, nil)
+	kafka.StopConsumer(consumer, nil)
 	log.Println("Kafka consumer stopped")
 
 	// Завершаем HTTP сервер
