@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shenikar/order-service/config"
@@ -29,8 +30,9 @@ func StartServer(cfg *config.Config, orderService *service.OrderService) {
 	log.Printf("Starting server on %s\n", addr)
 
 	httpServer = &http.Server{
-		Addr:    addr,
-		Handler: r,
+		Addr:              addr,
+		Handler:           r,
+		ReadHeaderTimeout: time.Duration(cfg.Server.ReadHeaderTimeout) * time.Second,
 	}
 
 	go func() {
@@ -47,5 +49,4 @@ func ShutdownServer(ctx context.Context) error {
 	}
 	log.Println("Shutting down server")
 	return httpServer.Shutdown(ctx)
-
 }
