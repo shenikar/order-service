@@ -33,8 +33,9 @@ type KafkaConfig struct {
 }
 
 type ServerConfig struct {
-	Host string
-	Port string
+	Host              string
+	Port              string
+	ReadHeaderTimeout int
 }
 
 type CacheConfig struct {
@@ -64,8 +65,9 @@ func LoadConfig() (*Config, error) {
 			DLQTopic: os.Getenv("KAFKA_DLQ_TOPIC"),
 		},
 		Server: ServerConfig{
-			Host: os.Getenv("SERVER_HOST"),
-			Port: os.Getenv("SERVER_PORT"),
+			Host:              os.Getenv("SERVER_HOST"),
+			Port:              os.Getenv("SERVER_PORT"),
+			ReadHeaderTimeout: mustParseEnvInt("SERVER_READ_HEADER_TIMEOUT"),
 		},
 		Cache: CacheConfig{
 			TTL:      mustParseEnvInt("CACHE_TTL"),
@@ -76,7 +78,7 @@ func LoadConfig() (*Config, error) {
 }
 
 // GetDatabaseUrl формирует строку подключения к базе данных
-func (c *Config) GetDatabaseUrl() string {
+func (c *Config) GetDatabaseURL() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		c.Database.User,
 		c.Database.Password,
