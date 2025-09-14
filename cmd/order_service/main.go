@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"errors"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -82,7 +81,7 @@ func main() {
 }
 
 func runMigrations(cfg *config.Config) error {
-	dbURL := cfg.GetDatabaseUrl()
+	dbURL := cfg.GetDatabaseURL()
 
 	m, err := migrate.New(
 		"file://migrations", dbURL)

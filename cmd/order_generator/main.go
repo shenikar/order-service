@@ -13,7 +13,9 @@ import (
 )
 
 func randomOrder() *models.Order {
-	gofakeit.Seed(time.Now().UnixNano())
+	if err := gofakeit.Seed(time.Now().UnixNano()); err != nil {
+		log.Fatalf("failed to seed gofakeit: %v", err)
+	}
 	now := time.Now()
 	return &models.Order{
 		OrderUID:        gofakeit.UUID(),
