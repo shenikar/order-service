@@ -3,14 +3,14 @@ package db
 import (
 	"fmt"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // Import pgx driver for database/sql
 	"github.com/jmoiron/sqlx"
 	"github.com/shenikar/order-service/config"
 )
 
 // Connect устанавливает соединение с базой данных
 func Connect(cfg *config.Config) (*sqlx.DB, error) {
-	connStr := cfg.GetDatabaseUrl()
+	connStr := cfg.GetDatabaseURL()
 
 	db, err := sqlx.Connect("pgx", connStr)
 	if err != nil {

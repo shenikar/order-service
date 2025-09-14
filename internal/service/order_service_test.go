@@ -25,18 +25,21 @@ func (m *mockRepo) SaveOrder(order *models.Order) error {
 	}
 	return nil
 }
+
 func (m *mockRepo) GetOrderByUID(uid string) (*models.Order, error) {
 	if m.getByUID != nil {
 		return m.getByUID(uid)
 	}
 	return nil, nil
 }
+
 func (m *mockRepo) GetItemByOrderUID(uid string) ([]models.Item, error) {
 	if m.getItems != nil {
 		return m.getItems(uid)
 	}
 	return nil, nil
 }
+
 func (m *mockRepo) GetAllOrders() ([]models.Order, error) {
 	if m.getAll != nil {
 		return m.getAll()

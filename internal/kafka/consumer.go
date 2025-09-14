@@ -110,7 +110,11 @@ func ensureTopic(cfg *config.Config, dialer *kafka.Dialer) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Failed to close connection: %v", err)
+		}
+	}()
 
 	controller, err := conn.Controller()
 	if err != nil {
@@ -121,8 +125,11 @@ func ensureTopic(cfg *config.Config, dialer *kafka.Dialer) error {
 	if err != nil {
 		return err
 	}
-	defer ctrlConn.Close()
-
+	defer func() {
+		if err := ctrlConn.Close(); err != nil {
+			log.Printf("Failed to close controller connection: %v", err)
+		}
+	}()
 	return ctrlConn.CreateTopics(kafka.TopicConfig{
 		Topic:             cfg.Kafka.Topic,
 		NumPartitions:     1,
