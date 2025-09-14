@@ -1,0 +1,60 @@
+run:
+  timeout: 3m
+  tests: true
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    # Основные
+    - govet         
+    - staticcheck   
+    - errcheck      
+    - ineffassign   
+    - gosimple      
+    - unused       
+    - typecheck     
+    # Стиль
+    - stylecheck    
+    - revive       
+    - gofumpt       
+    - misspell      
+    - lll           
+    - goconst       
+    # Безопасность
+    - gosec         
+    # Производительность
+    - prealloc      
+
+linters-settings:
+  lll:
+    line-length: 120
+    tab-width: 4
+  revive:
+    rules:
+      - name: var-naming
+        disabled: true
+        arguments:
+          allowCommonInitialisms: true
+          checkPrivateVars: true
+          checkStructFieldNames: true
+          checkFunctionNames: true
+      - name: package-comments
+        severity: warning
+      - name: blank-imports
+        severity: error
+  gofumpt:
+    extra-rules: true
+
+issues:
+  exclude-rules:
+    - linters:
+        - lll
+      source: "^// @"
+
+  # Разрешаем underscore для ID-шников (JSON/db tags часто используют snake_case)
+  exclude:
+    - "struct field .* should be .*"
+
+output:
+  formats:
+    - format: colored-line-number
