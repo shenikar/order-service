@@ -36,76 +36,73 @@ func (r *OrderRepository) SaveOrder(order *models.Order) error {
 
 	// Безопасный rollback
 	defer func() {
-		if rbErr := tx.Rollback(); rbErr != nil && errors.Is(rbErr, sql.ErrTxDone) {
+		if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
 			log.Printf("failed to rollback tx: %v", rbErr)
 		}
 	}()
 
-	// INSERT orders
+	// Сохраняем заказ
 	_, err = tx.NamedExec(`
 		INSERT INTO orders (
-			order_uid, track_number, entry, locale, internal_signature,
-			customer_id, delivery_service, shardkey, sm_id,
+			order_uid, track_number, entry, locale, internal_signature, 
+			customer_id, delivery_service, shardkey, sm_id, 
 			date_created, oof_shard
 		) VALUES (
-			:order_uid, :track_number, :entry, :locale, :internal_signature,
+			:order_uid, :track_number, :entry, :locale, :internal_signature, 
 			:customer_id, :delivery_service, :shardkey, :sm_id,
 			:date_created, :oof_shard
-		)
-	`, order)
+		) ON CONFLICT (order_uid) DO NOTHING`, order)
 	if err != nil {
-		return fmt.Errorf("failed to insert order: %w", err)
+		return fmt.Errorf("failed to save order: %w", err)
 	}
 
-	// INSERT payment
+	// Обновляем OrderUID для связанных сущностей
+	order.Delivery.OrderUID = order.OrderUID
+	order.Payment.OrderUID = order.OrderUID
+	for i := range order.Items {
+		order.Items[i].OrderUID = order.OrderUID
+	}
+
+	// Сохраняем доставку
+	_, err = tx.NamedExec(`
+		INSERT INTO deliveries (
+			order_uid, name, phone, zip, city, address, region, email
+		) VALUES (
+			:order_uid, :name, :phone, :zip, :city, :address, :region, :email
+		) ON CONFLICT (order_uid) DO NOTHING`, order.Delivery)
+	if err != nil {
+		return fmt.Errorf("failed to save delivery: %w", err)
+	}
+
+	// Сохраняем платеж
 	_, err = tx.NamedExec(`
 		INSERT INTO payments (
-			order_uid, transaction, request_id, currency, provider,
-			amount, payment_dt, bank, delivery_cost,
-			goods_total, custom_fee
+			order_uid, transaction, request_id, currency, provider, 
+			amount, payment_dt, bank, delivery_cost, goods_total, custom_fee
 		) VALUES (
-			:order_uid, :transaction, :request_id, :currency, :provider,
-			:amount, :payment_dt, :bank, :delivery_cost,
-			:goods_total, :custom_fee
-		)
-	`, order.Payment)
+			:order_uid, :transaction, :request_id, :currency, :provider, 
+			:amount, :payment_dt, :bank, :delivery_cost, :goods_total, :custom_fee
+		) ON CONFLICT (order_uid) DO NOTHING`, order.Payment)
 	if err != nil {
-		return fmt.Errorf("failed to insert payment: %w", err)
+		return fmt.Errorf("failed to save payment: %w", err)
 	}
 
-	// INSERT items
+	// Сохраняем товары
 	for _, item := range order.Items {
 		_, err = tx.NamedExec(`
 			INSERT INTO items (
-				order_uid, chrt_id, track_number, price, rid,
-				name, sale, size, total_price,
-				nm_id, brand, status
+				order_uid, chrt_id, track_number, price, rid, name, sale, 
+				size, total_price, nm_id, brand, status
 			) VALUES (
-				:order_uid, :chrt_id, :track_number, :price, :rid,
-				:name, :sale, :size, :total_price,
-				:nm_id, :brand, :status
-			)
-		`, item)
+				:order_uid, :chrt_id, :track_number, :price, :rid, :name, 
+				:sale, :size, :total_price, :nm_id, :brand, :status
+			) ON CONFLICT (chrt_id) DO NOTHING`, item)
 		if err != nil {
-			return fmt.Errorf("failed to insert item: %w", err)
+			return fmt.Errorf("failed to save item: %w", err)
 		}
 	}
 
-	// INSERT delivery
-	_, err = tx.NamedExec(`
-		INSERT INTO deliveries (
-			order_uid, name, phone, zip, city,
-			address, region, email
-		) VALUES (
-			:order_uid, :name, :phone, :zip, :city,
-			:address, :region, :email
-		)
-	`, order.Delivery)
-	if err != nil {
-		return fmt.Errorf("failed to insert delivery: %w", err)
-	}
-
-	// Commit транзакции
+	// Фиксируем транзакцию
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
