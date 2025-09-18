@@ -69,10 +69,11 @@ func main() {
 	}
 
 	// Настройка Kafka writer
-	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers: cfg.Kafka.Brokers,
-		Topic:   cfg.Kafka.Topic,
-	})
+	writer := kafka.Writer{
+		Addr:     kafka.TCP(cfg.Kafka.Brokers...),
+		Topic:    cfg.Kafka.Topic,
+		Balancer: &kafka.LeastBytes{},
+	}
 	defer func() {
 		if err := writer.Close(); err != nil {
 			log.Println("Failed to close Kafka writer:", err)

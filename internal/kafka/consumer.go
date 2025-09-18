@@ -139,10 +139,11 @@ func ensureTopic(cfg *config.Config, dialer *kafka.Dialer) error {
 
 // InitDLQWriter инициализирует Kafka writer для DLQ
 func InitDLQWriter(cfg *config.Config) {
-	DLQWriter = kafka.NewWriter(kafka.WriterConfig{
-		Brokers: cfg.Kafka.Brokers,
-		Topic:   cfg.Kafka.DLQTopic,
-	})
+	DLQWriter = &kafka.Writer{
+		Addr:     kafka.TCP(cfg.Kafka.Brokers...),
+		Topic:    cfg.Kafka.DLQTopic,
+		Balancer: &kafka.LeastBytes{},
+	}
 }
 
 // sendToDLQ отправляет сообщение в DLQ
