@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"time"
 
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shenikar/order-service/config"
 	"github.com/shenikar/order-service/internal/handler"
+	"github.com/shenikar/order-service/internal/metrics"
 	"github.com/shenikar/order-service/internal/router"
 	"github.com/shenikar/order-service/internal/service"
 )
@@ -19,11 +22,27 @@ var httpServer *http.Server
 func StartServer(cfg *config.Config, orderService *service.OrderService) {
 	r := gin.Default()
 
+	// Prometheus middleware
+	metricsMiddleware := func(c *gin.Context) {
+		c.Next()
+
+		path := c.FullPath()
+		if path == "" {
+			path = "not_found"
+		}
+
+		metrics.HttpRequestsTotal.WithLabelValues(
+			c.Request.Method,
+			path,
+			strconv.Itoa(c.Writer.Status()),
+		).Inc()
+	}
+
 	// Создаем обработчик
 	orderHandler := handler.NewOrderHandler(orderService)
 
 	// настраиваем маршруты
-	router.SetupRoutes(r, orderHandler)
+	router.SetupRoutes(r, orderHandler, metricsMiddleware)
 
 	// запускаем сервер
 	addr := cfg.GetServerAddress()
